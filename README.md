@@ -22,4 +22,4 @@
 ```shell
 java -jar vocabulary-generator-v1.0.jar
 ```
-执行完成后会在控制台生成对应报告，并且在jar包同级目录下生成vocabulary.html，如果有失败还会生成word_fail.txt
+执行完成后会在控制台生成对应报告
