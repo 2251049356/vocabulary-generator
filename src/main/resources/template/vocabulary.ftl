@@ -45,9 +45,9 @@
             <td>${item.name}</td>
             <td>
                 <span onclick="audioPlay(this)"><#if item.ukSpeak??><audio
-                    src="${item.ukSpeak}"></audio></#if>英/${item.ukPronounce!}/</span>&nbsp;&nbsp;
+                    src="${item.ukSpeak}"></audio></#if>英:[${item.ukPronounce!}]</span>&nbsp;&nbsp;
                 <span onclick="audioPlay(this)"><#if item.ukSpeak??><audio
-                    src="${item.usSpeak}"></audio></#if>美/${item.usPronounce!}/</span>
+                    src="${item.usSpeak}"></audio></#if>美:[${item.usPronounce!}]</span>
             </td>
             <td>${item.translate!}</td>
         </tr>
