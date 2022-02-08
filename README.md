@@ -22,4 +22,7 @@
 ```shell
 java -jar vocabulary-generator-v1.0.jar
 ```
-执行完成后会在控制台生成对应报告
+执行完成后会在控制台生成对应报告  
+
+4* 转pdf  
+以microsoft edge为例：打开生成的词汇表vocabulary.html，右键打印-》打印机选\`另存为pdf\`（更多设置里，缩放可以调字体大小，边距可以调边距）-》保存
