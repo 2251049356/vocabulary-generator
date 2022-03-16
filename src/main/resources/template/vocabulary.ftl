@@ -7,6 +7,7 @@
         table {
             border: 1px black solid;
             border-collapse: collapse;
+            width: 100%;
         }
 
         th, td {
@@ -46,9 +47,9 @@
         <tr>
             <td>${item.name}</td>
             <td>
-                <span class="pronounce-block" onclick="audioPlay(this)"><#if item.ukSpeak??><audio
+                <span class="pronounce-block" onclick="audioPlay(this)" title="点击朗读"><#if item.ukSpeak??><audio
                     src="${item.ukSpeak}"></audio></#if>英:[${item.ukPronounce!}]</span>
-                <span class="pronounce-block" onclick="audioPlay(this)"><#if item.ukSpeak??><audio
+                <span class="pronounce-block" onclick="audioPlay(this)" title="点击朗读"><#if item.ukSpeak??><audio
                     src="${item.usSpeak}"></audio></#if>美:[${item.usPronounce!}]</span>
             </td>
             <td>${item.translate!}</td>
