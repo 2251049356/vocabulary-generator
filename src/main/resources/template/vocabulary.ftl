@@ -31,9 +31,16 @@
 </head>
 <body>
 <script>
-    function audioPlay(e) {
-        if (e.firstChild.src !== '' && e.firstChild.pause) {
-            e.firstChild.play();
+    function audioPlay(audioUrl) {
+        if (audioUrl) {
+            var audio = new Audio(audioUrl);
+            audio.play();
+            audio.onended = function () {
+                this.currentSrc = null;
+                this.src = "";
+                this.srcObject = null;
+                this.remove();
+            };
         }
     }
 </script>
@@ -47,10 +54,8 @@
         <tr>
             <td>${item.name}</td>
             <td>
-                <span class="pronounce-block" onclick="audioPlay(this)" title="点击朗读"><#if item.ukSpeak??><audio
-                    src="${item.ukSpeak}"></audio></#if>英:[${item.ukPronounce!}]</span>
-                <span class="pronounce-block" onclick="audioPlay(this)" title="点击朗读"><#if item.ukSpeak??><audio
-                    src="${item.usSpeak}"></audio></#if>美:[${item.usPronounce!}]</span>
+                <span class="pronounce-block" onclick="audioPlay('${item.ukSpeak!}')" title="点击朗读">英:[${item.ukPronounce!}]</span>
+                <span class="pronounce-block" onclick="audioPlay('${item.usSpeak!}')" title="点击朗读">美:[${item.usPronounce!}]</span>
             </td>
             <td>${item.translate!}</td>
         </tr>
