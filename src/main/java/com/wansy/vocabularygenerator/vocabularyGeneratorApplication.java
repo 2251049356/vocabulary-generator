@@ -5,6 +5,7 @@ import freemarker.template.Configuration;
 import freemarker.template.Template;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -38,11 +39,11 @@ public class vocabularyGeneratorApplication {
     }
 
     @Bean
-    CommandLineRunner commandLineRunner() {
+    CommandLineRunner commandLineRunner(@Value("${force-write:false}") boolean forceWrite) {
 
         return (args) -> {
             Path outFilePath = Paths.get(System.getProperty("user.dir") + "/vocabulary.html");
-            if (Files.exists(outFilePath)) {
+            if (!forceWrite && Files.exists(outFilePath)) {
                 System.out.println("输出文件" + outFilePath.getFileName() + "已存在");
                 System.exit(0);
             }
@@ -57,7 +58,7 @@ public class vocabularyGeneratorApplication {
                             try {
                                 return vocabularyQueryStrategy.query(d);
                             } catch (Exception e) {
-                                log.debug("exception", e);
+                                log.debug(d, e);
                                 // 节约查词成本
                                 fails.add(Pair.of(d, Optional.ofNullable(e.getMessage()).orElse("null")));
                             }
