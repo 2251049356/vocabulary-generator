@@ -16,4 +16,10 @@ public interface VocabularyQueryStrategy {
      * @return
      */
     VocabularyItem query(String word);
+
+    /**
+     * 获取策略名
+     * @return
+     */
+    String getStrategyName();
 }

@@ -5,6 +5,7 @@ import freemarker.template.Configuration;
 import freemarker.template.Template;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
@@ -13,10 +14,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.data.util.Pair;
 import org.springframework.util.CollectionUtils;
 
-import javax.annotation.Resource;
-import java.io.File;
-import java.io.IOException;
-import java.io.Writer;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -29,8 +27,8 @@ import java.util.stream.Stream;
 
 @SpringBootApplication
 public class vocabularyGeneratorApplication {
-    @Resource(name = "${strategy.impl}")
-    private VocabularyQueryStrategy vocabularyQueryStrategy;
+    @Autowired
+    private List<VocabularyQueryStrategy> vocabularyQueryStrategies;
 
     private static final Logger log = LoggerFactory.getLogger(vocabularyGeneratorApplication.class);
 
@@ -45,10 +43,22 @@ public class vocabularyGeneratorApplication {
             Path outFilePath = Paths.get(System.getProperty("user.dir") + "/vocabulary.html");
             if (!forceWrite && Files.exists(outFilePath)) {
                 System.out.println("输出文件" + outFilePath.getFileName() + "已存在");
-                System.exit(0);
+                System.exit(1);
             }
             try (Writer writer = Files.newBufferedWriter(outFilePath);
                  Writer failWriter = Files.newBufferedWriter(Paths.get(System.getProperty("user.dir") + "/word_fail.txt"))) {
+                // 选择策略
+                System.out.println("请选择词典（输入编号即可）：");
+                for (int i = 0; i < vocabularyQueryStrategies.size(); i++) {
+                    System.out.println((i + 1) + " " + vocabularyQueryStrategies.get(i).getStrategyName());
+                }
+                String idxStr = new BufferedReader(new InputStreamReader(System.in)).readLine();
+                int idx = 0;
+                if (idxStr == null || !idxStr.matches("\\d+") || (idx = Integer.parseInt(idxStr)) < 1 || idx > vocabularyQueryStrategies.size()) {
+                    System.out.println("编号超出范围");
+                    System.exit(1);
+                }
+                VocabularyQueryStrategy vocabularyQueryStrategy = vocabularyQueryStrategies.get(idx - 1);
                 // 获取单词
                 Path wordsFilePath = Paths.get(System.getProperty("user.dir") + "/words.txt");
                 // 获取词条

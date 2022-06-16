@@ -55,6 +55,11 @@ public class BingVocabularyQueryStrategyImpl implements VocabularyQueryStrategy 
         }
     }
 
+    @Override
+    public String getStrategyName() {
+        return "必应";
+    }
+
     private class VocabularyItemCallback extends HTMLEditorKit.ParserCallback {
         /**
          * 发音上下文 true美式，false英式，null没有发音

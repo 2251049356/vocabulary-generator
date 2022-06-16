@@ -42,4 +42,9 @@ public class YouDaoVocabularyQueryStrategyImpl implements VocabularyQueryStrateg
         result.setTranslate(String.join("<br/>", ((List<String>) translatePath.eval(vocabularyInfo))));
         return result;
     }
+
+    @Override
+    public String getStrategyName() {
+        return "有道";
+    }
 }
