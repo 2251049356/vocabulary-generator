@@ -3,6 +3,7 @@ package com.wansy.vocabularygenerator;
 import com.wansy.vocabularygenerator.strategy.VocabularyQueryStrategy;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
+import org.apache.tomcat.util.http.fileupload.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,8 +14,10 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.util.Pair;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 
 import java.io.*;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -40,13 +43,14 @@ public class vocabularyGeneratorApplication {
     CommandLineRunner commandLineRunner(@Value("${force-write:false}") boolean forceWrite) {
 
         return (args) -> {
-            Path outFilePath = Paths.get(System.getProperty("user.dir") + "/vocabulary.html");
+            String baseDir = System.getProperty("user.dir");
+            Path outFilePath = Paths.get(baseDir + "/vocabulary.html");
             if (!forceWrite && Files.exists(outFilePath)) {
                 System.out.println("输出文件" + outFilePath.getFileName() + "已存在");
                 System.exit(1);
             }
             try (Writer writer = Files.newBufferedWriter(outFilePath);
-                 Writer failWriter = Files.newBufferedWriter(Paths.get(System.getProperty("user.dir") + "/word_fail.txt"))) {
+                 Writer failWriter = Files.newBufferedWriter(Paths.get(baseDir + "/word_fail.txt"))) {
                 // 选择策略
                 System.out.println("请选择词典（输入编号即可）：");
                 for (int i = 0; i < vocabularyQueryStrategies.size(); i++) {
@@ -59,14 +63,32 @@ public class vocabularyGeneratorApplication {
                     System.exit(1);
                 }
                 VocabularyQueryStrategy vocabularyQueryStrategy = vocabularyQueryStrategies.get(idx - 1);
+                // 离线音频
+                System.out.println("是否需要离线音频（词典的音频链接有有效期）y/n:");
+                boolean offlineAudio = "y".equals(new BufferedReader(new InputStreamReader(System.in)).readLine());
+                String audioDir = baseDir + "/audio/";
+                File audioDirFile = new File(audioDir);
+                if (!audioDirFile.exists()) {
+                    audioDirFile.mkdir();
+                }
                 // 获取单词
-                Path wordsFilePath = Paths.get(System.getProperty("user.dir") + "/words.txt");
+                Path wordsFilePath = Paths.get(baseDir + "/words.txt");
                 // 获取词条
                 List<Pair<String, String>> fails = new ArrayList<>();
                 List<VocabularyItem> vocabularyItems = Files.readAllLines(wordsFilePath).stream().flatMap(d -> Stream.of(d.split("\\s+")))
                         .filter(d -> !"".equals(d)).map(d -> {
                             try {
-                                return vocabularyQueryStrategy.query(d);
+                                VocabularyItem item = vocabularyQueryStrategy.query(d);
+                                if (offlineAudio && !StringUtils.isEmpty(item.getUsSpeak())) {
+                                    URL url = new URL(item.getUsSpeak());
+                                    String audioName = d + ".mp3";
+                                    item.setUsSpeak("audio/" + audioName);
+                                    try (InputStream in = url.openStream(); OutputStream out = new FileOutputStream(audioDir + audioName)) {
+                                        IOUtils.copy(in, out);
+                                    }
+                                    Thread.sleep(100);
+                                }
+                                return item;
                             } catch (Exception e) {
                                 log.debug(d, e);
                                 // 节约查词成本

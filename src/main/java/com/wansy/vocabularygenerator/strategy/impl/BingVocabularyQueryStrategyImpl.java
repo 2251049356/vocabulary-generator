@@ -87,14 +87,13 @@ public class BingVocabularyQueryStrategyImpl implements VocabularyQueryStrategy 
                 };
             }
             // 处理音标
-            else if (pronounceContext != null && HTML.Tag.DIV.equals(t) && a.containsAttribute(HTML.Attribute.CLASS, "client_aud_o")) {
+            else if (pronounceContext != null && HTML.Tag.DIV.equals(t) && ((String) a.getAttribute(HTML.Attribute.CLASS)).contains("client_aud_o")) {
                 Enumeration<?> names = a.getAttributeNames();
                 while (names.hasMoreElements()) {
                     Object name = names.nextElement();
-                    if ("onclick".equals(name.toString())) {
+                    if ("data-pronunciation".equals(name.toString())) {
                         String value = (String) a.getAttribute(name);
-                        int start = value.indexOf("'");
-                        String audio = value.substring(start + 1, value.indexOf("'", start + 1));
+                        String audio = "https://cn.bing.com" + value;
                         if (pronounceContext) vocabularyItem.setUsSpeak(audio);
                         else vocabularyItem.setUkSpeak(audio);
                         pronounceContext = null;
