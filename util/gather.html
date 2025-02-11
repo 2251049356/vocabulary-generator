@@ -1,0 +1,197 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>词汇表</title>
+    <style>
+        table {
+            border: 1px black solid;
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px black solid;
+        }
+
+        .font-bold{
+            font-size: 1em;
+            font-weight: bold;
+        }
+		
+		iframe {
+			height: 95%;
+			width: 100%;
+		}
+		
+		a {
+			margin: 0 5px;
+			float: left;
+		}
+    </style>
+</head>
+<body onload="setSize()">
+<script>
+    let strategy;
+    let wordShowTr;
+    let closeFlag;
+    let user='default';
+    let version='1.0';
+	let cookieKey;
+	
+	function setSize(){
+		document.body.style.width=document.documentElement.clientWidth + 'px';
+		document.body.style.height=document.documentElement.clientHeight + 'px';
+		document.body.style.overflow='hidden';
+	}
+
+    let rememberStrategy = {
+        startWordTrIdx: 0,
+        count: 0,
+        enter: function (startWordTrIdx,count){
+            this.count = 0;
+            this.startWordTrIdx = startWordTrIdx;
+        },
+        incorrect: function () {
+
+        },
+        next:function () {
+            return this.startWordTrIdx+(this.count++);
+        },
+        visible:function (){
+            return true;
+        },
+        finish: function () {
+            localStorage.setItem(cookieKey, JSON.stringify(this));
+        },
+        getCount:function(){
+            return this.count + 1;
+        }
+    };
+
+    let dictateStrategy = {
+        words:[],
+        currentWordTrIdx:0,
+        passFlag:true,
+        enter: function (startWordTrIdx,count){
+            for (let i = 0; i < count; i++) {
+                this.words.push(startWordTrIdx + i);
+            }
+            this.passFlag = true;
+        },
+        incorrect: function () {
+            if(this.words[this.words.length-1]!=this.currentWordTrIdx){
+                this.words.push(this.currentWordTrIdx);
+            }
+            this.passFlag = false;
+        },
+        next:function () {
+            this.currentWordTrIdx=this.words.shift();
+            return this.currentWordTrIdx;
+        },
+        visible:function (){
+            return false;
+        },
+        finish: function () {
+        },
+        getCount:function(){}
+    };
+
+    function remember() {
+		if(!cookieKey){
+			alert('先选择词典');
+			return;
+		}
+        // 初始化
+        let userDataStr = localStorage.getItem(cookieKey);
+        let panel = document.getElementById('rememberPanel');
+        panel.style.display = 'block';
+        let userData = userDataStr ? JSON.parse(userDataStr) : {startWordTrIdx: 0, count: 0};
+        wordShowTr = document.getElementById('wordTr');
+        closeFlag = false;
+        initStrategy(userData.startWordTrIdx, userData.count, userData.count ? dictateStrategy : rememberStrategy);
+    }
+
+    function initStrategy(startWordIdx,count,p_strategy){
+        strategy = p_strategy;
+        strategy.enter(startWordIdx,count);
+        let visibility = strategy.visible() === false ? 'hidden' : 'visible';
+        document.getElementById('terminalBtn').style.visibility = visibility;
+        document.getElementById('counter').parentElement.style.visibility = visibility;
+        next();
+    }
+
+    function showWord(wordIdx, visible) {
+        let wordTr = document.getElementsByTagName('iframe')[0].contentDocument.getElementsByTagName('table')[0].children[0].children[wordIdx + 1];
+        wordShowTr.style.visibility = visible ? 'visible':'hidden';
+        while (wordShowTr.hasChildNodes()) {
+            wordShowTr.removeChild(wordShowTr.firstChild);
+        }
+        for (let i = 0; i < wordTr.childElementCount; i++) {
+            wordShowTr.appendChild(wordTr.children[i].cloneNode(true));
+        }
+        // setTimeout(triggerSpeak(wordShowTr.children[1].children[0], 0), 500);
+        wordShowTr.children[1].children[0].click();
+    }
+
+    function finishRemember() {
+        closeFlag = true;
+        strategy.finish();
+        initStrategy(strategy.startWordTrIdx,strategy.count,dictateStrategy);
+    }
+
+    function next() {
+        document.getElementById('counter').textContent = strategy.getCount();
+        wordShowTr.nextElementSibling.children[0].children[0].style.backgroundColor = 'white';
+        wordShowTr.nextElementSibling.children[0].children[0].value='';
+        let next = strategy.next();
+        if(next >= 0){
+            showWord(next,strategy.visible());
+        }else{
+            if(closeFlag || !strategy.passFlag){
+                document.getElementById('rememberPanel').style.display = 'none';
+            }else{
+                userData = JSON.parse(localStorage.getItem(cookieKey));
+                initStrategy(userData.startWordTrIdx+userData.count,null,rememberStrategy);
+            }
+        }
+    }
+
+    function submit(btn) {
+        let dictateInput = btn.previousElementSibling;
+        let pass = wordShowTr.children[0].textContent == dictateInput.value;
+        dictateInput.style.backgroundColor = pass ? '#00ff00' : '#ff4f4f';
+        wordShowTr.style.visibility = 'visible';
+        if(!pass){
+            strategy.incorrect();
+        }
+    }
+	
+	function choose(obj){
+		cookieKey = user + '|' + obj.textContent;
+	}
+</script>
+<a href="example.html" target="iframe" onclick="choose(this)">示例</a>
+<div style="clear: both">
+	<button type="button" class="font-bold" onclick="remember()">记单词</button>
+</div>
+<iframe name="iframe" frameborder="0" title="词典"></iframe>
+<div id="rememberPanel" style="background-color:white;position:fixed;top:0;left:0;display:none;height:100vh;width:100vw;" class="font-bold">
+    <table>
+        <tr>
+            <td colspan="3">
+                <button type="button" class="font-bold" style="color:red" onclick="finishRemember()" id="terminalBtn">结束</button>
+                <button type="button" class="font-bold" onclick="next()">下一个</button>
+                <div style="display: inline;">第<span id="counter"></span><span>个</span></div>
+            </td>
+            
+        </tr>
+        <tr id="wordTr"></tr>
+        <tr id="dictateTr">
+            <td colspan="3">听写：<input class="font-bold" type="text" id="dictateInput"/>
+                <button class="font-bold" type="button" onclick="submit(this)">提交</button>
+            </td>
+        </tr>
+    </table>
+</div>
+</body>
+</html>

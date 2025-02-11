@@ -26,3 +26,7 @@ java -jar vocabulary-generator-v1.0.jar
 
 4* 转pdf  
 以microsoft edge为例：打开生成的词汇表vocabulary.html，右键打印-》打印机选\`另存为pdf\`（更多设置里，缩放可以调字体大小，边距可以调边距）-》保存
+
+## 其他
+util文件夹存放了一些帮助文件  
+|-gather.html用于聚合多个词典文件，并添加记单词功能。按照示例链接修改、增加
