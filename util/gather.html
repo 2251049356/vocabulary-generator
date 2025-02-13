@@ -36,7 +36,9 @@
     let closeFlag;
     let user='default';
     let version='1.0';
-	let cookieKey;
+	let storageKey;
+    let audioPlay;
+    let initFlag;
 	
 	function setSize(){
 		document.body.style.width=document.documentElement.clientWidth + 'px';
@@ -61,7 +63,7 @@
             return true;
         },
         finish: function () {
-            localStorage.setItem(cookieKey, JSON.stringify(this));
+            localStorage.setItem(storageKey, JSON.stringify(this));
         },
         getCount:function(){
             return this.count + 1;
@@ -75,6 +77,10 @@
         enter: function (startWordTrIdx,count){
             for (let i = 0; i < count; i++) {
                 this.words.push(startWordTrIdx + i);
+            }
+            for (let i = this.words.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [this.words[i], this.words[j]] = [this.words[j], this.words[i]];
             }
             this.passFlag = true;
         },
@@ -92,23 +98,29 @@
             return false;
         },
         finish: function () {
+            userData = JSON.parse(localStorage.getItem(storageKey));
+            userData.startWordTrIdx=userData.startWordTrIdx+userData.count;
+            userData.count = null;
+            localStorage.setItem(storageKey, JSON.stringify(userData));
         },
         getCount:function(){}
     };
 
     function remember() {
-		if(!cookieKey){
+		if(!storageKey){
 			alert('先选择词典');
 			return;
 		}
         // 初始化
-        let userDataStr = localStorage.getItem(cookieKey);
+        initFlag = true;
+        let userDataStr = localStorage.getItem(storageKey);
         let panel = document.getElementById('rememberPanel');
         panel.style.display = 'block';
         let userData = userDataStr ? JSON.parse(userDataStr) : {startWordTrIdx: 0, count: 0};
         wordShowTr = document.getElementById('wordTr');
         closeFlag = false;
         initStrategy(userData.startWordTrIdx, userData.count, userData.count ? dictateStrategy : rememberStrategy);
+        initFlag = false;
     }
 
     function initStrategy(startWordIdx,count,p_strategy){
@@ -140,6 +152,10 @@
     }
 
     function next() {
+        if (!closeFlag && !initFlag && wordShowTr.nextElementSibling.children[0].children[0].value != wordShowTr.children[0].textContent) {
+            alert('要写正确');
+            return;
+        }
         document.getElementById('counter').textContent = strategy.getCount();
         wordShowTr.nextElementSibling.children[0].children[0].style.backgroundColor = 'white';
         wordShowTr.nextElementSibling.children[0].children[0].value='';
@@ -148,10 +164,12 @@
             showWord(next,strategy.visible());
         }else{
             if(closeFlag || !strategy.passFlag){
+                alert('听写完毕，至少五分钟后再进入');
                 document.getElementById('rememberPanel').style.display = 'none';
             }else{
-                userData = JSON.parse(localStorage.getItem(cookieKey));
-                initStrategy(userData.startWordTrIdx+userData.count,null,rememberStrategy);
+                strategy.finish();
+                alert('单词都听写通过了');
+                document.getElementById('rememberPanel').style.display = 'none';
             }
         }
     }
@@ -167,7 +185,10 @@
     }
 	
 	function choose(obj){
-		cookieKey = user + '|' + obj.textContent;
+		storageKey = user + '|' + obj.textContent;
+        document.getElementsByTagName('iframe')[0].onload=function(e){
+            audioPlay = e.target.contentWindow.audioPlay;
+        };
 	}
 </script>
 <a href="example.html" target="iframe" onclick="choose(this)">示例</a>
@@ -183,7 +204,6 @@
                 <button type="button" class="font-bold" onclick="next()">下一个</button>
                 <div style="display: inline;">第<span id="counter"></span><span>个</span></div>
             </td>
-            
         </tr>
         <tr id="wordTr"></tr>
         <tr id="dictateTr">
