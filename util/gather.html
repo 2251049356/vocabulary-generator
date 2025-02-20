@@ -23,10 +23,22 @@
 			width: 100%;
 		}
 		
-		a {
+		#menu-item {
 			margin: 0 5px;
 			float: left;
 		}
+
+        #menu-end {
+            clear: both
+        }
+
+        #unchoose {
+            background: gray;
+        }
+
+        button {
+            margin-right: 1em;
+        }
     </style>
 </head>
 <body onload="setSize()">
@@ -34,47 +46,60 @@
     let strategy;
     let wordShowTr;
     let closeFlag;
-    let user='default';
-    let version='1.0';
-	let storageKey;
+    let user = 'default';
+    let storageKey;
     let audioPlay;
-    let initFlag;
-	
-	function setSize(){
-		document.body.style.width=document.documentElement.clientWidth + 'px';
-		document.body.style.height=document.documentElement.clientHeight + 'px';
-		document.body.style.overflow='hidden';
-	}
-
+    let rememberData;
+    let currentPhrase;
+    let storageObj = {
+        save() {
+            localStorage.setItem(storageKey, JSON.stringify(rememberData));
+        },
+        load() {
+            return JSON.parse(localStorage.getItem(storageKey));
+        }
+    }
     let rememberStrategy = {
         startWordTrIdx: 0,
         count: 0,
-        enter: function (startWordTrIdx,count){
+        remainWords: [],
+        enter(startWordTrIdx, count, remainWords) {
             this.count = 0;
             this.startWordTrIdx = startWordTrIdx;
+            this.remainWords = remainWords;
+            render(this.elements, true);
         },
-        incorrect: function () {
-
+        get elements() {
+            return [document.getElementById('terminalBtn'), document.getElementById('counter')]
         },
-        next:function () {
-            return this.startWordTrIdx+(this.count++);
-        },
-        visible:function (){
+        wordVisible() {
             return true;
         },
-        finish: function () {
-            localStorage.setItem(storageKey, JSON.stringify(this));
+        incorrect() {
         },
-        getCount:function(){
+        correct() {
+        },
+        next() {
+            document.getElementById('counter').textContent = '第' + this.getCount() + '个';
+            return this.remainWords.shift() || this.startWordTrIdx + (this.count++);
+        },
+        finish() {
+            render(this.elements, false);
+        },
+        getCount() {
             return this.count + 1;
         }
     };
-
     let dictateStrategy = {
-        words:[],
-        currentWordTrIdx:0,
-        passFlag:true,
-        enter: function (startWordTrIdx,count){
+        words: [],
+        currentWordTrIdx: 0,
+        passFlag: true,
+        allNeedPass: true,
+        errorWords: [],
+        enter(startWordTrIdx, count, remainWords) {
+            for (let item of remainWords) {
+                this.words.push(item);
+            }
             for (let i = 0; i < count; i++) {
                 this.words.push(startWordTrIdx + i);
             }
@@ -83,58 +108,249 @@
                 [this.words[i], this.words[j]] = [this.words[j], this.words[i]];
             }
             this.passFlag = true;
+            this.errorWords = [];
         },
-        incorrect: function () {
-            if(this.words[this.words.length-1]!=this.currentWordTrIdx){
-                this.words.push(this.currentWordTrIdx);
+        wordVisible() {
+            return false;
+        },
+        incorrect() {
+            let words = !this.allNeedPass ? this.errorWords : this.words;
+            if (words[words.length - 1] != this.currentWordTrIdx) {
+                words.push(this.currentWordTrIdx);
             }
             this.passFlag = false;
         },
-        next:function () {
-            this.currentWordTrIdx=this.words.shift();
+        correct() {
+            if (!this.allNeedPass && this.errorWords[this.errorWords.length - 1] == this.currentWordTrIdx) {
+                this.errorWords.pop();
+            }
+        },
+        next() {
+            this.currentWordTrIdx = this.words.shift();
             return this.currentWordTrIdx;
         },
-        visible:function (){
-            return false;
+        finish() {
         },
-        finish: function () {
-            userData = JSON.parse(localStorage.getItem(storageKey));
-            userData.startWordTrIdx=userData.startWordTrIdx+userData.count;
-            userData.count = null;
-            localStorage.setItem(storageKey, JSON.stringify(userData));
-        },
-        getCount:function(){}
+        getCount() {
+        }
     };
+    let rememberPanel = {
+        input: null,
+        init() {
+            this.input = document.getElementById('dictateInput');
+            render([this.container], true);
+            currentPhrase.render();
+            this.reset();
+        },
+        get container() {
+            return document.getElementById('stand-component');
+        },
+        reset() {
+            this.input.value = '';
+            this.input.style.backgroundColor = 'white';
+        },
+        submit() {
+            let pass = this.checkVal();
+            dictateInput.style.backgroundColor = pass ? '#00ff00' : '#ff4f4f';
+            wordShowTr.style.visibility = 'visible';
+            return pass;
+        },
+        checkVal() {
+            return wordShowTr.children[0].textContent == this.input.value;
+        },
+        canNext() {
+            let result = this.checkVal();
+            if (!result) {
+                alert('正确才能继续');
+            }
+            return result;
+        },
+        end() {
+            render([this.container], false);
+            currentPhrase.end();
+        }
+    };
+    let rememberExternalWritePanel = {
+        visibleBtn: null,
+        optionBtns: null,
+        chooseBtn: null,
+        submitBtn: null,
+        phrase: null,
+        init() {
+            this.visibleBtn = this.container.children[0];
+            this.optionBtns = [this.container.children[1], this.container.children[2]];
+            this.submitBtn = document.getElementById('submit-btn');
+            render([this.container], true);
+            currentPhrase.render();
+            this.reset();
+        },
+        get container() {
+            return document.getElementById('external-write-component');
+        },
+        reset() {
+            let isRememberPhrase = currentPhrase == rememberPhrase;
+            this.visibleBtn.style.display = isRememberPhrase ? 'none' : 'inline';
+            for (let item of this.optionBtns) {
+                item.style.display = !isRememberPhrase ? 'none' : 'inline';
+            }
+            this.submitBtn.style.display = !isRememberPhrase ? 'none' : 'inline';
+            this.resetChooseBtn();
+        },
+        submit() {
+            return this.checkVal();
+        },
+        checkVal() {
+            return this.optionBtns[0] = this.chooseBtn;
+        },
+        canNext() {
+            if (currentPhrase == repeatDictatePhrase) {
+                let result = this.chooseBtn;
+                if (!result) {
+                    alert('请选择：对/错');
+                }
+                return result;
+            } else {
+                let result = this.chooseBtn == this.optionBtns[0];
+                if (!result) {
+                    alert('正确才能继续');
+                }
+                return result;
+            }
+        },
+        resetChooseBtn() {
+            if (this.chooseBtn) {
+                this.chooseBtn.style.backgroundColor = null;
+                this.chooseBtn = null;
+            }
+        },
+        end() {
+            render([this.container], false);
+            currentPhrase.end();
+        }
+    }
+    let currentPanel;
 
-    function remember() {
-		if(!storageKey){
-			alert('先选择词典');
-			return;
-		}
-        // 初始化
-        initFlag = true;
-        let userDataStr = localStorage.getItem(storageKey);
-        let panel = document.getElementById('rememberPanel');
-        panel.style.display = 'block';
-        let userData = userDataStr ? JSON.parse(userDataStr) : {startWordTrIdx: 0, count: 0};
-        wordShowTr = document.getElementById('wordTr');
-        closeFlag = false;
-        initStrategy(userData.startWordTrIdx, userData.count, userData.count ? dictateStrategy : rememberStrategy);
-        initFlag = false;
+    function render(elems, isVisible) {
+        for (let item of elems) {
+            item.style.display = isVisible ? 'inline' : 'none';
+        }
     }
 
-    function initStrategy(startWordIdx,count,p_strategy){
+    function RememberData(remainWords, startIdx, count, phrase) {
+        this.remainWords = remainWords;
+        this.startIdx = startIdx;
+        this.count = count;
+        this.phrase = phrase;
+    }
+
+    function verifyDate(startTime, hr, min) {
+        hr = hr || 0;
+        min = min || 0;
+        let canEnterDate = new Date(startTime + (hr * 60 + min) * 60 * 1000);
+        if (canEnterDate > new Date()) {
+            alert('至少等待' + (hr ? hr + '小时' : '') + (min ? min + '分钟' : '') + '（即，大于' + canEnterDate.toLocaleString() + '）再进入');
+            return false;
+        }
+        return true;
+    }
+
+    function RememberPhrase(name, cnName, strategy1, endClose, goNextPhrase, endDataSet, canEnter) {
+        this.name = name;
+        this.cnName = cnName;
+        this.nextPhrase = null;
+        this.strategy = strategy1;
+        this.canEnter = canEnter;
+        this.render = function () {
+            document.getElementById('phrase').textContent = this.cnName;
+            strategy = this.strategy;
+            initStrategy(this.strategy);
+        };
+        this.end = function () {
+            this.strategy.finish();
+            if (goNextPhrase.call(this)) {
+                currentPhrase = currentPhrase.nextPhrase;
+                rememberData.phrase = currentPhrase.name;
+            }
+            endDataSet.call(this);
+            return endClose;
+        };
+    }
+
+    const rememberPhrase = new RememberPhrase('rem', '记忆阶段', rememberStrategy, false, () => true, function () {
+        rememberData.count = this.strategy.count;
+    }, () => true);
+    const quickDictatePhrase = new RememberPhrase('quickDic', '快速听写阶段', dictateStrategy, true, () => true, function () {
+        rememberData.dictateTime = new Date().getTime();
+        verifyDate(rememberData.dictateTime, this.nextPhrase.gapeHr, this.nextPhrase.gapeMinus);
+    }, () => true);
+    const dictatePhrase = new RememberPhrase('dic', '听写阶段', dictateStrategy, true, function () {
+        return this.strategy.passFlag;
+    }, function () {
+        rememberData.dictateTime = new Date().getTime();
+        if (this.strategy.passFlag) {
+            verifyDate(rememberData.dictateTime, this.nextPhrase.gapeHr, this.nextPhrase.gapeMinus);
+        } else {
+            verifyDate(rememberData.dictateTime, null, this.gapeMinus);
+        }
+    }, function () {
+        return verifyDate(rememberData.dictateTime, null, this.gapeMinus);
+    });
+    dictatePhrase.gapeMinus = 5;
+    const repeatDictateStrategy = Object.create(dictateStrategy);
+    repeatDictateStrategy.allNeedPass = false;
+    const repeatDictatePhrase = new RememberPhrase('deepDic', '深度听写阶段', repeatDictateStrategy, false, () => true, function () {
+        rememberData.remainWords = this.strategy.errorWords;
+        rememberData.startIdx = rememberData.startIdx + rememberData.count;
+        rememberData.count = 0;
+    }, function () {
+        return verifyDate(rememberData.dictateTime, this.gapeHr, null);
+    });
+    repeatDictatePhrase.gapeHr = 5;
+    rememberPhrase.nextPhrase = quickDictatePhrase;
+    quickDictatePhrase.nextPhrase = dictatePhrase;
+    dictatePhrase.nextPhrase = repeatDictatePhrase;
+    repeatDictatePhrase.nextPhrase = rememberPhrase;
+
+    function setSize() {
+        document.body.style.width = document.documentElement.clientWidth + 'px';
+        document.body.style.height = document.documentElement.clientHeight + 'px';
+        document.body.style.overflow = 'hidden';
+    }
+
+    function remember(externalWrite) {
+        if (!storageKey) {
+            alert('先选择词典');
+            return;
+        }
+        // 初始化
+        rememberData = storageObj.load() || new RememberData([], 0, 0, rememberPhrase.name);
+        currentPanel = externalWrite ? rememberExternalWritePanel : rememberPanel;
+        let phrase = rememberPhrase;
+        do {
+            if (phrase.name == rememberData.phrase) {
+                currentPhrase = phrase;
+                break;
+            }
+            phrase = phrase.nextPhrase;
+        } while (phrase != rememberPhrase);
+        if (!currentPhrase.canEnter()) {
+            return;
+        }
+        document.getElementById('rememberPanel').style.display = 'block';
+        wordShowTr = document.getElementById('wordTr');
+        closeFlag = false;
+        currentPanel.init();
+    }
+
+    function initStrategy(p_strategy) {
         strategy = p_strategy;
-        strategy.enter(startWordIdx,count);
-        let visibility = strategy.visible() === false ? 'hidden' : 'visible';
-        document.getElementById('terminalBtn').style.visibility = visibility;
-        document.getElementById('counter').parentElement.style.visibility = visibility;
-        next();
+        strategy.enter(rememberData.startIdx, rememberData.count, Object.create(rememberData.remainWords));
+        next(true);
     }
 
     function showWord(wordIdx, visible) {
         let wordTr = document.getElementsByTagName('iframe')[0].contentDocument.getElementsByTagName('table')[0].children[0].children[wordIdx + 1];
-        wordShowTr.style.visibility = visible ? 'visible':'hidden';
+        wordShowTr.style.visibility = visible ? 'visible' : 'hidden';
         while (wordShowTr.hasChildNodes()) {
             wordShowTr.removeChild(wordShowTr.firstChild);
         }
@@ -145,70 +361,99 @@
         wordShowTr.children[1].children[0].click();
     }
 
-    function finishRemember() {
-        closeFlag = true;
-        strategy.finish();
-        initStrategy(strategy.startWordTrIdx,strategy.count,dictateStrategy);
-    }
-
-    function next() {
-        if (!closeFlag && !initFlag && wordShowTr.nextElementSibling.children[0].children[0].value != wordShowTr.children[0].textContent) {
-            alert('要写正确');
+    function finishRemember(obj) {
+        if (!currentPanel.canNext()) {
             return;
         }
-        document.getElementById('counter').textContent = strategy.getCount();
-        wordShowTr.nextElementSibling.children[0].children[0].style.backgroundColor = 'white';
-        wordShowTr.nextElementSibling.children[0].children[0].value='';
+        phraseEnd();
+    }
+
+    function phraseEnd() {
+        let needClose = currentPhrase.end();
+        storageObj.save();
+        if (needClose) {
+            document.getElementById('rememberPanel').style.display = 'none';
+        } else {
+            alert('当前阶段完成，进入' + currentPhrase.cnName);
+            currentPhrase.render();
+        }
+    }
+
+    function next(init) {
+        if (!init && !currentPanel.canNext()) {
+            return;
+        }
         let next = strategy.next();
-        if(next >= 0){
-            showWord(next,strategy.visible());
-        }else{
-            if(closeFlag || !strategy.passFlag){
-                alert('听写完毕，至少五分钟后再进入');
-                document.getElementById('rememberPanel').style.display = 'none';
-            }else{
-                strategy.finish();
-                alert('单词都听写通过了');
-                document.getElementById('rememberPanel').style.display = 'none';
-            }
+        if (next >= 0) {
+            currentPanel.reset();
+            showWord(next, strategy.wordVisible());
+        } else {
+            phraseEnd();
         }
     }
 
     function submit(btn) {
-        let dictateInput = btn.previousElementSibling;
-        let pass = wordShowTr.children[0].textContent == dictateInput.value;
-        dictateInput.style.backgroundColor = pass ? '#00ff00' : '#ff4f4f';
-        wordShowTr.style.visibility = 'visible';
-        if(!pass){
+        if (!currentPanel.submit()) {
             strategy.incorrect();
         }
     }
-	
-	function choose(obj){
-		storageKey = user + '|' + obj.textContent;
-        document.getElementsByTagName('iframe')[0].onload=function(e){
+
+    function choose(obj) {
+        storageKey = user + '|' + obj.textContent;
+        document.getElementsByTagName('iframe')[0].onload = function (e) {
             audioPlay = e.target.contentWindow.audioPlay;
         };
-	}
+    }
+
+    function makeVisible() {
+        wordShowTr.style.visibility = 'visible';
+        rememberExternalWritePanel.visibleBtn.style.display = 'none';
+        for (let item of rememberExternalWritePanel.optionBtns) {
+            item.style.display = 'inline';
+        }
+        rememberExternalWritePanel.submitBtn.style.display = 'inline';
+    }
+
+    function externalWrite(obj, result) {
+        rememberExternalWritePanel.resetChooseBtn();
+        obj.style.backgroundColor = result ? '#00ff00' : '#ff4f4f';
+        rememberExternalWritePanel.chooseBtn = obj;
+        if (!result) {
+            strategy.incorrect();
+        } else {
+            strategy.correct();
+        }
+    }
 </script>
 <a href="example.html" target="iframe" onclick="choose(this)">示例</a>
-<div style="clear: both">
-	<button type="button" class="font-bold" onclick="remember()">记单词</button>
+<span class="menu-end"></span>
+<div>
+	<button type="button" class="font-bold menu-item" onclick="remember()">记单词</button>
+	<button type="button" class="font-bold menu-item" onclick="remember(true)">记单词（外部书写）</button>
 </div>
 <iframe name="iframe" frameborder="0" title="词典"></iframe>
 <div id="rememberPanel" style="background-color:white;position:fixed;top:0;left:0;display:none;height:100vh;width:100vw;" class="font-bold">
     <table>
         <tr>
             <td colspan="3">
-                <button type="button" class="font-bold" style="color:red" onclick="finishRemember()" id="terminalBtn">结束</button>
+                <strong id="phrase"></strong>
+                <button type="button" class="font-bold" style="color:red;display: none" onclick="finishRemember(this)" id="terminalBtn">结束</button>
                 <button type="button" class="font-bold" onclick="next()">下一个</button>
-                <div style="display: inline;">第<span id="counter"></span><span>个</span></div>
+                <span style="display: none" id="counter"></span>
             </td>
         </tr>
         <tr id="wordTr"></tr>
         <tr id="dictateTr">
-            <td colspan="3">听写：<input class="font-bold" type="text" id="dictateInput"/>
-                <button class="font-bold" type="button" onclick="submit(this)">提交</button>
+            <td colspan="3">
+                <span id="stand-component" style="display: none">
+                    听写：<input class="font-bold" type="text" id="dictateInput"/>
+                    <button class="font-bold" type="button" id="submit-btn" onclick="submit(this)">提交</button>
+                </span>
+                <span id="external-write-component" style="display: none">
+                    <button class="font-bold" onclick="makeVisible()">显示</button>
+                    <button class="font-bold unchoose" onclick="externalWrite(this,true)">对</button>
+                    <button class="font-bold unchoose" onclick="externalWrite(this,false)">错</button>
+                </span>
             </td>
         </tr>
     </table>
