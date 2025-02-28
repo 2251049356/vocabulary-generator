@@ -39,6 +39,8 @@ public class vocabularyGeneratorApplication {
         SpringApplication.run(vocabularyGeneratorApplication.class, args);
     }
 
+    private String audioDirName = "audio";
+
     @Bean
     CommandLineRunner commandLineRunner(@Value("${force-write:false}") boolean forceWrite) {
 
@@ -66,7 +68,7 @@ public class vocabularyGeneratorApplication {
                 // 离线音频
                 System.out.println("是否需要离线音频（词典的音频链接有有效期）y/n:");
                 boolean offlineAudio = "y".equals(new BufferedReader(new InputStreamReader(System.in)).readLine());
-                String audioDir = baseDir + "/audio/";
+                String audioDir = baseDir + "/" + audioDirName + "/";
                 File audioDirFile = new File(audioDir);
                 if (!audioDirFile.exists()) {
                     audioDirFile.mkdir();
@@ -79,14 +81,9 @@ public class vocabularyGeneratorApplication {
                         .filter(d -> !"".equals(d)).map(d -> {
                             try {
                                 VocabularyItem item = vocabularyQueryStrategy.query(d);
-                                if (offlineAudio && !StringUtils.isEmpty(item.getUsSpeak())) {
-                                    URL url = new URL(item.getUsSpeak());
-                                    String audioName = d + ".mp3";
-                                    item.setUsSpeak("audio/" + audioName);
-                                    try (InputStream in = url.openStream(); OutputStream out = new FileOutputStream(audioDir + audioName)) {
-                                        IOUtils.copy(in, out);
-                                    }
-                                    Thread.sleep(100);
+                                if (offlineAudio) {
+                                    downVideo(audioDir, d, item, true);
+                                    downVideo(audioDir, d, item, false);
                                 }
                                 return item;
                             } catch (Exception e) {
@@ -117,6 +114,31 @@ public class vocabularyGeneratorApplication {
                 System.exit(0);
             }
         };
+    }
+
+    /**
+     * 下载音频
+     *
+     * @param audioDir
+     * @param word
+     * @param item
+     * @throws IOException
+     * @throws InterruptedException
+     */
+    private void downVideo(String audioDir, String word, VocabularyItem item, boolean usOrUK) throws IOException, InterruptedException {
+        String urlStr = usOrUK ? item.getUsSpeak() : item.getUkSpeak();
+        if (!StringUtils.isEmpty(urlStr)) {
+            String audioName = word + "(" + (usOrUK ? "US" : "UK") + ").mp3";
+            String dir = audioDirName + "/" + audioName;
+            URL url = new URL(urlStr);
+            if (usOrUK)
+                item.setUsSpeak(dir);
+            else item.setUkSpeak(dir);
+            try (InputStream in = url.openStream(); OutputStream out = new FileOutputStream(audioDir + audioName)) {
+                IOUtils.copy(in, out);
+            }
+            Thread.sleep(100);
+        }
     }
 
 }
