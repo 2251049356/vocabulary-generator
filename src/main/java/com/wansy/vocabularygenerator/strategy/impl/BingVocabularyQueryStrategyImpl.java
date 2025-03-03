@@ -94,8 +94,8 @@ public class BingVocabularyQueryStrategyImpl implements VocabularyQueryStrategy 
                     if ("data-pronunciation".equals(name.toString())) {
                         String value = (String) a.getAttribute(name);
                         String audio = "https://cn.bing.com" + value;
-                        if (pronounceContext) vocabularyItem.setUsSpeak(audio);
-                        else vocabularyItem.setUkSpeak(audio);
+                        if (pronounceContext) vocabularyItem.setUsSpeak(vocabularyItem.new Speak(audio,false));
+                        else vocabularyItem.setUkSpeak(vocabularyItem.new Speak(audio,true));
                         pronounceContext = null;
                     }
                 }

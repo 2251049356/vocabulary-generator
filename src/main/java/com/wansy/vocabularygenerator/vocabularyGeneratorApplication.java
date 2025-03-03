@@ -82,8 +82,8 @@ public class vocabularyGeneratorApplication {
                             try {
                                 VocabularyItem item = vocabularyQueryStrategy.query(d);
                                 if (offlineAudio) {
-                                    downVideo(audioDir, d, item, true);
-                                    downVideo(audioDir, d, item, false);
+                                    item.getUsSpeak().down(audioDirName,audioDir);
+                                    item.getUkSpeak().down(audioDirName,audioDir);
                                 }
                                 return item;
                             } catch (Exception e) {
@@ -115,30 +115,4 @@ public class vocabularyGeneratorApplication {
             }
         };
     }
-
-    /**
-     * 下载音频
-     *
-     * @param audioDir
-     * @param word
-     * @param item
-     * @throws IOException
-     * @throws InterruptedException
-     */
-    private void downVideo(String audioDir, String word, VocabularyItem item, boolean usOrUK) throws IOException, InterruptedException {
-        String urlStr = usOrUK ? item.getUsSpeak() : item.getUkSpeak();
-        if (!StringUtils.isEmpty(urlStr)) {
-            String audioName = word + "(" + (usOrUK ? "US" : "UK") + ").mp3";
-            String dir = audioDirName + "/" + audioName;
-            URL url = new URL(urlStr);
-            if (usOrUK)
-                item.setUsSpeak(dir);
-            else item.setUkSpeak(dir);
-            try (InputStream in = url.openStream(); OutputStream out = new FileOutputStream(audioDir + audioName)) {
-                IOUtils.copy(in, out);
-            }
-            Thread.sleep(100);
-        }
-    }
-
 }

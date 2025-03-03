@@ -1,5 +1,13 @@
 package com.wansy.vocabularygenerator;
 
+import org.apache.tomcat.util.http.fileupload.IOUtils;
+import org.springframework.util.StringUtils;
+
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URL;
+
 /**
  * 词汇条目
  *
@@ -10,23 +18,23 @@ public class VocabularyItem {
     private String name;
     private String ukPronounce;
     private String usPronounce;
-    private String ukSpeak;
-    private String usSpeak;
+    private Speak ukSpeak;
+    private Speak usSpeak;
     private String translate;
 
-    public String getUkSpeak() {
+    public Speak getUkSpeak() {
         return ukSpeak;
     }
 
-    public void setUkSpeak(String ukSpeak) {
+    public void setUkSpeak(Speak ukSpeak) {
         this.ukSpeak = ukSpeak;
     }
 
-    public String getUsSpeak() {
+    public Speak getUsSpeak() {
         return usSpeak;
     }
 
-    public void setUsSpeak(String usSpeak) {
+    public void setUsSpeak(Speak usSpeak) {
         this.usSpeak = usSpeak;
     }
 
@@ -60,5 +68,37 @@ public class VocabularyItem {
 
     public void setTranslate(String translate) {
         this.translate = translate;
+    }
+
+    public class Speak {
+        private String url;
+        private String flag;
+
+        public String getUrl() {
+            return url;
+        }
+
+        public Speak(String url, Boolean ukOrUs) {
+            this.url = url;
+            this.flag = ukOrUs ? "UK" : "US";
+        }
+
+        public void down(String audioDirName, String audioDir) throws Exception {
+            if (!StringUtils.isEmpty(this.url)) {
+                String audioName = name + "(" + this.flag + ").mp3";
+                String dir = audioDirName + "/" + audioName;
+                URL url = new URL(this.url);
+                this.url = dir;
+                try (InputStream in = url.openStream(); OutputStream out = new FileOutputStream(audioDir + audioName)) {
+                    IOUtils.copy(in, out);
+                }
+                Thread.sleep(100);
+            }
+        }
+
+        @Override
+        public String toString() {
+            return this.url;
+        }
     }
 }
