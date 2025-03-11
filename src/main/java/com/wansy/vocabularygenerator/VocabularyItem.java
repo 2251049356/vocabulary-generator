@@ -74,6 +74,10 @@ public class VocabularyItem {
         private String url;
         private String flag;
 
+        public void setUrl(String url) {
+            this.url = url;
+        }
+
         public String getUrl() {
             return url;
         }

@@ -2,6 +2,7 @@ package com.wansy.vocabularygenerator.strategy.impl;
 
 import com.wansy.vocabularygenerator.VocabularyItem;
 import com.wansy.vocabularygenerator.strategy.VocabularyQueryStrategy;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -28,7 +29,8 @@ import java.util.function.Consumer;
  */
 @Service("bingImpl")
 public class BingVocabularyQueryStrategyImpl implements VocabularyQueryStrategy {
-    private final RestTemplate restTemplate = new RestTemplate();
+    @Autowired
+    private RestTemplate restTemplate;
     private final BlockingQueue<VocabularyItem> queue = new ArrayBlockingQueue<>(100);
 
     @Override

@@ -3,7 +3,6 @@ package com.wansy.vocabularygenerator;
 import com.wansy.vocabularygenerator.strategy.VocabularyQueryStrategy;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
-import org.apache.tomcat.util.http.fileupload.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,10 +13,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.util.Pair;
 import org.springframework.util.CollectionUtils;
-import org.springframework.util.StringUtils;
+import org.springframework.web.client.RestTemplate;
 
 import java.io.*;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -26,7 +24,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @SpringBootApplication
 public class vocabularyGeneratorApplication {
@@ -40,6 +37,11 @@ public class vocabularyGeneratorApplication {
     }
 
     private String audioDirName = "audio";
+
+    @Bean
+    RestTemplate restTemplate() {
+        return new RestTemplate();
+    }
 
     @Bean
     CommandLineRunner commandLineRunner(@Value("${force-write:false}") boolean forceWrite) {
@@ -77,13 +79,16 @@ public class vocabularyGeneratorApplication {
                 Path wordsFilePath = Paths.get(baseDir + "/words.txt");
                 // 获取词条
                 List<Pair<String, String>> fails = new ArrayList<>();
-                List<VocabularyItem> vocabularyItems = Files.readAllLines(wordsFilePath).stream().flatMap(d -> Stream.of(d.split("\\s+")))
+                List<VocabularyItem> vocabularyItems = Files.readAllLines(wordsFilePath).stream()
                         .filter(d -> !"".equals(d)).map(d -> {
                             try {
                                 VocabularyItem item = vocabularyQueryStrategy.query(d);
                                 if (offlineAudio) {
-                                    item.getUsSpeak().down(audioDirName,audioDir);
-                                    item.getUkSpeak().down(audioDirName,audioDir);
+                                    item.getUkSpeak().down(audioDirName, audioDir);
+                                    if (!item.getUkPronounce().equals(item.getUsPronounce()))
+                                        item.getUsSpeak().down(audioDirName, audioDir);
+                                    else
+                                        item.getUsSpeak().setUrl(item.getUkSpeak().getUrl());
                                 }
                                 return item;
                             } catch (Exception e) {
